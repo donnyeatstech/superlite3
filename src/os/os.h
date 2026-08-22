@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <unistd.h>
 /*
  * Wrappers around syscalls that the code will require.
@@ -11,10 +12,14 @@
  *
  */
 
-int open_file(int fd, const char *path, int *out_fd);
+int stat_file(const char *restrict path, struct stat *restrict statbuf);
 
-int create_file(int dirfd, const char *path);
+int open_file(int fd, const char *path, int oflag, int *out_fd);
 
-ssize_t write_file(int dirfd, const char *path, size_t count, const void *buf);
+int read_file(int fd, void *buf, size_t nbyte, off_t offset);
+
+int create_file(int dirfd, const char *path, int *out_fd);
+
+int write_file(int fd, const void *buf, size_t nbytes, off_t offset);
 
 int close_file(int fd);
