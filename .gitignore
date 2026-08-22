@@ -53,3 +53,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Claude Code personal instructions (not shared)
+CLAUDE.local.md
