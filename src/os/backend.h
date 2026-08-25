@@ -1,6 +1,7 @@
-#ifndef TEST_BACKEND
-#define TEST_BACKEND
+#ifndef BACKEND_DECLARATION
+#define BACKEND_DECLARATION
 
+#include <sys/stat.h>
 #include <sys/types.h>
 
 struct syscalls {
@@ -12,6 +13,8 @@ struct syscalls {
     int (*fsync)(int);
 };
 
-extern struct syscalls *ptr;
+extern struct syscalls *active_backend;
 
-#endif TEST_BACKEND
+struct syscalls *swap_backend(struct syscalls *next);
+
+#endif

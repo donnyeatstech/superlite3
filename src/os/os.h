@@ -14,7 +14,7 @@
 
 int stat_file(const char *restrict path, struct stat *restrict statbuf);
 
-int open_file(int fd, const char *path, int oflag, int *out_fd);
+int open_file(int fd, const char *path, int oflag, int mode, int *out_fd);
 
 int read_file(int fd, void *buf, size_t nbyte, off_t offset);
 
