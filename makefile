@@ -2,11 +2,11 @@ CC=gcc
 CFLAGS=-Wall -Wextra
 
 
-build: src/main.c src/os/os.c
-	$(CC) $(CFLAGS) -o superlite src/main.c src/os/os.c
+build: src/main.c src/os/os.c src/os/backend.h src/os/real_backend.c
+	$(CC) $(CFLAGS) -o superlite src/main.c src/os/os.c src/os/real_backend.c
 
-debug: src/main.c src/os/os.c
-	$(CC) $(CFLAGS) -o superlite src/main.c src/os/os.c  -g
+debug: src/main.c src/os/os.c src/os/backend.h src/os/real_backend.c
+	$(CC) $(CFLAGS) -o superlite src/main.c src/os/os.c src/os/real_backend.c -g
 
 clean: 
 	rm superlite
