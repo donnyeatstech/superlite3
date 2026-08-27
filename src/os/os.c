@@ -3,9 +3,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 int stat_file(const char *restrict path, struct stat *restrict statbuf) {
     int out = active_backend->stat(path, statbuf);
@@ -21,7 +18,6 @@ int stat_file(const char *restrict path, struct stat *restrict statbuf) {
 int open_file(int dirfd, const char *path, int oflag, int mode, int *out_fd) {
     int file_fd;
     do {
-
         file_fd = active_backend->openat(dirfd, path, oflag, mode);
     } while (file_fd == -1 && errno == EINTR);
     if (file_fd == -1) {
