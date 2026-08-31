@@ -27,8 +27,7 @@ int file_not_exists() {
     assert(out == -1);
     assert(errno == ENOENT);
 
-    printf("[FILE NOT EXISTS] SUCCESS asserted ENOENT error code: %d\n",
-           ENOENT);
+    printf("[FILE NOT EXISTS] SUCCESS asserted ENOENT error code: %d\n", errno);
     swap_backend(prev);
     return 0;
 }
@@ -75,7 +74,27 @@ int not_enough_dir_permissions() {
     assert(errno = EACCES);
     printf("[NOT ENOUGH DIR PERMISSIONS > CREATE_FILE] SUCCESS asserted  error "
            "code: %d\n",
-           EACCES);
+           errno);
+
+    swap_backend(prev);
+    return 0;
+}
+
+int file_exists_create_fails() {
+    int dirfd = 1;
+    const char *path = "fake/example1.txt";
+    int fd_int = 1;
+    int *out_fd = &fd_int;
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+
+    int out = create_file(dirfd, path, out_fd);
+    assert(out == -1);
+    assert(errno == EEXIST);
+
+    printf("[FILE EXISTS CREATE FAILS > create_file] SUCCESS asserted "
+           "code: %d\n",
+           errno);
 
     swap_backend(prev);
     return 0;
@@ -85,5 +104,6 @@ int main() {
     file_not_exists();
     file_exists();
     not_enough_dir_permissions();
+    file_exists_create_fails();
     return 0;
 }
