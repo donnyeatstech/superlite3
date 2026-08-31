@@ -1,6 +1,7 @@
 
 #include "../../src/os/backend.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 
 #define MAX_FAKE_FILES 30
@@ -16,7 +17,22 @@ int fake_file_exists(const char *path) {
     return -1;
 }
 
-static int test_openat(int fd, const char *buf, int oflag, mode_t mode) {
+void add_fake_file(const char *path) {
+    fake_file_count++;
+    fake_files[fake_file_count] = path;
+}
+
+static int test_openat(int fd, const char *path, int oflag, mode_t mode) {
+    if (oflag == (O_WRONLY | O_CREAT | O_EXCL)) {
+        if (fake_file_exists(path) != -1) {
+            errno = EEXIST;
+            return -1;
+        }
+        add_fake_file(path);
+        return 0;
+    } else if (oflag & O_WRONLY & O_CREAT & O_EXCL) {
+        return 0;
+    }
     return 0;
 }
 
