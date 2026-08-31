@@ -45,7 +45,7 @@ int file_exists() {
     assert(out == 0);
 
     printf("[FILE EXISTS > create_file] SUCCESS asserted no error code: %d\n",
-           ENOENT);
+           errno);
 
     const char *fake_path = "fake/example1.txt";
     struct stat statbuf_real = {};
@@ -54,7 +54,7 @@ int file_exists() {
     out = stat_file(fake_path, statbuf);
     assert(out == 0);
     printf("[FILE EXISTS > stat_file] SUCCESS asserted no error code: %d\n",
-           ENOENT);
+           errno);
 
     swap_backend(prev);
     return 0;
@@ -71,7 +71,7 @@ int not_enough_dir_permissions() {
 
     int out = create_file(dirfd, path, out_fd_ptr);
     assert(out == -1);
-    assert(errno = EACCES);
+    assert(errno == EACCES);
     printf("[NOT ENOUGH DIR PERMISSIONS > CREATE_FILE] SUCCESS asserted  error "
            "code: %d\n",
            errno);
