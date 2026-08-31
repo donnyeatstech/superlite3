@@ -9,7 +9,7 @@ int stat_file(const char *restrict path, struct stat *restrict statbuf) {
 
     if (out < 0) {
         printf("stat_file error: %d\n", errno);
-        return errno;
+        return -1;
     }
 
     return 0;
@@ -22,7 +22,7 @@ int open_file(int dirfd, const char *path, int oflag, int mode, int *out_fd) {
     } while (file_fd == -1 && errno == EINTR);
     if (file_fd == -1) {
         printf("open_file error: %d\n", errno);
-        return errno;
+        return -1;
     }
     *out_fd = file_fd;
     return 0;
@@ -41,7 +41,7 @@ int read_file(int fd, void *buf, size_t nbytes, off_t offset) {
                 continue;
             }
             printf("read_file error: %d\n", errno);
-            return errno;
+            return -1;
         }
         if ((size_t)out_bytes == 0) {
             printf("read_file unexpected EOF. expected %zu bytes\n", nbytes);
@@ -62,7 +62,7 @@ int create_file(int dirfd, const char *path, int *out_fd) {
     } while (file_fd == -1 && errno == EINTR);
     if (file_fd < 0) {
         printf("create_file error: %d\n", errno);
-        return errno;
+        return -1;
     }
     *out_fd = file_fd;
     return 0;
@@ -80,7 +80,7 @@ int write_file(int fd, const void *buf, size_t nbytes, off_t offset) {
                 continue;
             }
             printf("write_file error: %d\n", errno);
-            return errno;
+            return -1;
         }
 
         if ((size_t)out_bytes == 0) {
@@ -102,7 +102,7 @@ int fsync_file(int fd) {
     } while (err == -1 && errno == EINTR);
     if (err < 0) {
         printf("fsync_file error: %d\n", errno);
-        return errno;
+        return -1;
     }
     return 0;
 }
@@ -112,7 +112,7 @@ int close_file(int fd) {
 
     if (err < 0) {
         printf("close_file error: %d\n", errno);
-        return errno;
+        return -1;
     }
 
     return 0;

@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 
 #define MAX_FAKE_FILES 30
 static const char *fake_files[MAX_FAKE_FILES];
@@ -26,6 +27,10 @@ static int test_openat(int fd, const char *path, int oflag, mode_t mode) {
     if (oflag == (O_WRONLY | O_CREAT | O_EXCL)) {
         if (fake_file_exists(path) != -1) {
             errno = EEXIST;
+            return -1;
+        }
+        if (strcmp(path, "/fake/not_enough_dir_permissions.txt") == 0) {
+            errno = EACCES;
             return -1;
         }
         add_fake_file(path);
