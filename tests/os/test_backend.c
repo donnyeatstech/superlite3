@@ -33,6 +33,10 @@ static int test_openat(int fd, const char *path, int oflag, mode_t mode) {
             errno = EACCES;
             return -1;
         }
+        if (strcmp(path, "some/fake/path.txt") == 0) {
+            errno = ENOENT;
+            return -1;
+        }
         add_fake_file(path);
         return 0;
     } else if (oflag & O_WRONLY & O_CREAT & O_EXCL) {
