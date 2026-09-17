@@ -2,6 +2,7 @@
 #include "../../src/os/backend.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,13 +24,13 @@ static int fake_file_count = 0;
 
 struct fake_file_buffer *fake_file_exists(const char *path, int fd) {
     if (fd != -1) {
-        for (int i = 0; i <= fake_file_count; i++) {
+        for (int i = 0; i < fake_file_count; i++) {
             if (fake_file_buffers[i].fd == fd) {
                 return &fake_file_buffers[i];
             }
         }
     } else {
-        for (int i = 0; i <= fake_file_count; i++) {
+        for (int i = 0; i < fake_file_count; i++) {
             if (fake_file_buffers[i].path == path) {
                 return &fake_file_buffers[i];
             }
@@ -39,7 +40,6 @@ struct fake_file_buffer *fake_file_exists(const char *path, int fd) {
 }
 
 void add_fake_file(const char *path, int fd, void *buf, size_t len) {
-    fake_file_count++;
     struct fake_file_buffer new_file = {};
     new_file.path = path;
     new_file.fd = fd;
@@ -47,6 +47,8 @@ void add_fake_file(const char *path, int fd, void *buf, size_t len) {
         memcpy(new_file.filebuffer, buf, len);
     }
     new_file.len = len;
+    fake_file_buffers[fake_file_count] = new_file;
+    fake_file_count++;
 }
 
 static int test_openat(int fd, const char *path, int oflag, mode_t mode) {
@@ -73,8 +75,9 @@ static int test_openat(int fd, const char *path, int oflag, mode_t mode) {
             errno = EACCES;
             return -1;
         }
-        add_fake_file(path, fd, NULL, -1);
-        return 0;
+        int new_fd = fake_file_count + 3;
+        add_fake_file(path, new_fd, NULL, -1);
+        return new_fd;
     }
     return 0;
 }
@@ -89,7 +92,19 @@ static int test_stat(const char *restrict path, struct stat *restrict statbuf) {
 }
 
 static ssize_t test_pread(int fd, void *buf, size_t nbytes, off_t offset) {
-    return 0;
+    struct fake_file_buffer *file = fake_file_exists(NULL, fd);
+    if (file == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+    ssize_t bytes_avl = file->len - offset;
+    if (bytes_avl < 0) {
+        return 0;
+    }
+    size_t lim = (size_t)bytes_avl;
+    lim = lim < nbytes ? lim : nbytes;
+    memcpy(buf, file->filebuffer + offset, lim);
+    return (ssize_t)lim;
 }
 
 static ssize_t test_pwrite(int fd, const void *buf, size_t nbytes,
@@ -99,9 +114,20 @@ static ssize_t test_pwrite(int fd, const void *buf, size_t nbytes,
         errno = EBADF;
         return -1;
     }
-    memcpy(file->filebuffer, buf, nbytes);
-    file->len = (ssize_t)nbytes;
-    file->offset = offset;
+    if (offset < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (offset + nbytes > FILE_BUFFER_CAP) {
+        errno = EFBIG;
+        return -1;
+    }
+    memcpy(file->filebuffer + offset, buf, nbytes);
+
+    ssize_t end = (ssize_t)offset + (ssize_t)nbytes;
+    if (end > file->len) {
+        file->len = end;
+    }
     return (ssize_t)nbytes;
 }
 

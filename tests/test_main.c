@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 extern struct syscalls test_syscalls;
 
@@ -121,16 +122,27 @@ void open_file_success() {
 void read_file_reads_all_written_bytes_in_file(int fd) {
 
     struct syscalls *prev = swap_backend(&test_syscalls);
-
-    uint8_t buf[512];
-    for (int i = 0; i < (int)sizeof(buf); i++) {
-        buf[i] = (uint8_t)(i * 32) + 52;
+    uint8_t write_buffer[512];
+    for (int i = 0; i < (int)sizeof(write_buffer); i++) {
+        write_buffer[i] = (uint8_t)(i * 31) + 7;
     }
-    buf[240] = 0x00;
-    int err = write_file(fd, buf, sizeof(buf), 0);
+    write_buffer[240] = 0x00;
+    int err = write_file(fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, 0);
+
+    uint8_t read_buffer[512];
+    for (int i = 0; i < (int)sizeof(read_buffer); i++) {
+        read_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    read_buffer[240] = 0x00;
+    err = read_file(fd, read_buffer, sizeof(read_buffer), 0);
+    check(err, 0);
+    err = memcmp(write_buffer, read_buffer, sizeof(write_buffer));
     check(err, 0);
     swap_backend(prev);
 }
+
+void read_file_unexpected_eof(int fd) {}
 
 int main() {
     file_not_exists();
