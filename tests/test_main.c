@@ -3,19 +3,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 
 extern struct syscalls test_syscalls;
-
-/* file existence and creation:
-* 1. File doesn't exist → stat_file reports it doesn't exist (ENOENT)
-2. File exists → stat_file confirms it exists
-3. File doesn't exist → create_file succeeds
-4. File doesn't exist, permission denied on the containing dir → create_file
-fails, EACCES
-5. [new] File already exists → create_file fails, EEXIST — this is the entire
-reason O_EXCL is set; currently untested
- * */
 
 static int failures = 0;
 
@@ -24,8 +15,9 @@ static int failures = 0;
         if (actual != expected) {                                              \
             failures++;                                                        \
             LOG("FAIL %s != %s", #actual, #expected);                          \
+        } else {                                                               \
+            LOG("SUCCESS %s == %s", #actual, #expected);                       \
         }                                                                      \
-        LOG("SUCCESS %s == %s", #actual, #expected);                           \
     } while (0)
 #define LOG(fmt, ...)                                                          \
     printf("%s: %d " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
@@ -43,12 +35,10 @@ void file_not_exists() {
     swap_backend(prev);
 }
 
-void file_exists() {
+void file_exists(int *out_fd) {
 
     int dirfd = 1;
     const char *path = "fake/example1.txt";
-    int fd_int = 1;
-    int *out_fd = &fd_int;
 
     struct syscalls *prev = swap_backend(&test_syscalls);
 
@@ -96,7 +86,6 @@ void file_exists_create_fails() {
 }
 
 void open_file_invalid_file_path() {
-
     const char *path = "some/fake/path.txt";
     struct syscalls *prev = swap_backend(&test_syscalls);
     int out_fd = 2;
@@ -107,11 +96,54 @@ void open_file_invalid_file_path() {
     swap_backend(prev);
 }
 
+void open_file_permission_denied() {
+    const char *path = "some/fake/permission_denied.txt";
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int out_fd = 2;
+    int *out_ptr = &out_fd;
+    int err = open_file(AT_FDCWD, path, O_CREAT | O_RDONLY, 0, out_ptr);
+    check(err, -1);
+    check(errno, EACCES);
+    swap_backend(prev);
+}
+
+void open_file_success() {
+    const char *path = "some/fake/valid_file.txt";
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int out_fd = 2;
+    int *out_ptr = &out_fd;
+    int err = open_file(AT_FDCWD, path, O_CREAT | O_RDONLY, 0, out_ptr);
+    check(err, 0);
+    check(out_fd, 2);
+    swap_backend(prev);
+}
+
+void read_file_reads_all_written_bytes_in_file(int fd) {
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+
+    uint8_t buf[512];
+    for (int i = 0; i < (int)sizeof(buf); i++) {
+        buf[i] = (uint8_t)(i * 32) + 52;
+    }
+    buf[240] = 0x00;
+    int err = write_file(fd, buf, sizeof(buf), 0);
+    check(err, 0);
+    swap_backend(prev);
+}
+
 int main() {
     file_not_exists();
-    file_exists();
+    int out = 1;
+    int *out_fd = &out;
+    file_exists(out_fd);
     not_enough_dir_permissions();
     file_exists_create_fails();
-    LOG("failures: %d", failures);
-    // open_file_invalid_file_path();
+    LOG("STAT & CREATE failures: %d", failures);
+    failures = 0;
+    open_file_invalid_file_path();
+    open_file_permission_denied();
+    open_file_success();
+    read_file_reads_all_written_bytes_in_file(*out_fd);
+    LOG("OPEN & READ & CLOSE failures: %d", failures);
 }

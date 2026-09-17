@@ -57,8 +57,8 @@ int read_file(int fd, void *buf, size_t nbytes, off_t offset) {
 int create_file(int dirfd, const char *path, int *out_fd) {
     int file_fd;
     do {
-        file_fd = active_backend->openat(dirfd, path,
-                                         O_WRONLY | O_CREAT | O_EXCL, 0600);
+        file_fd = active_backend->openat(dirfd, path, O_RDWR | O_CREAT | O_EXCL,
+                                         0644);
     } while (file_fd == -1 && errno == EINTR);
     if (file_fd < 0) {
         printf("create_file error: %d\n", errno);
