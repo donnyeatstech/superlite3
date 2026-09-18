@@ -71,10 +71,11 @@ int create_file(int dirfd, const char *path, int *out_fd) {
 int write_file(int fd, const void *buf, size_t nbytes, off_t offset) {
     ssize_t out_bytes;
     const char *ptr = (char *)buf;
-    size_t bytes_read = 0;
-    while (bytes_read < nbytes) {
-        out_bytes = active_backend->pwrite(
-            fd, ptr + bytes_read, nbytes - bytes_read, offset + bytes_read);
+    size_t bytes_written = 0;
+    while (bytes_written < nbytes) {
+        out_bytes = active_backend->pwrite(fd, ptr + bytes_written,
+                                           nbytes - bytes_written,
+                                           offset + bytes_written);
         if (out_bytes < 0) {
             if (errno == EINTR) {
                 continue;
@@ -88,7 +89,7 @@ int write_file(int fd, const void *buf, size_t nbytes, off_t offset) {
             return -1;
         }
 
-        bytes_read += out_bytes;
+        bytes_written += out_bytes;
     }
 
     return 0;
