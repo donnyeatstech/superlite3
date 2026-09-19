@@ -1,5 +1,6 @@
 #include "../src/os/backend.h"
 #include "../src/os/os.h"
+#include "../tests/os/test_backend.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -131,9 +132,6 @@ void read_file_reads_all_written_bytes_in_file(int fd) {
     check(err, 0);
 
     uint8_t read_buffer[512];
-    for (int i = 0; i < (int)sizeof(read_buffer); i++) {
-        read_buffer[i] = (uint8_t)(i * 31) + 7;
-    }
     read_buffer[240] = 0x00;
     err = read_file(fd, read_buffer, sizeof(read_buffer), 0);
     check(err, 0);
@@ -162,6 +160,29 @@ void read_file_unexpected_eof(int fd) {
     swap_backend(prev);
 }
 
+void read_file_eintr_but_success(int fd) {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    uint8_t write_buffer[512];
+    for (int i = 0; i < (int)sizeof(write_buffer); i++) {
+        write_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    write_buffer[240] = 0x00;
+    int err = write_file(fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, 0);
+    uint8_t read_buffer[512];
+    for (int i = 0; i < (int)sizeof(read_buffer); i++) {
+        read_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    read_buffer[240] = 0x00;
+    arm_eintr(3);
+    err = read_file(fd, read_buffer, sizeof(read_buffer), 0);
+    check(err, 0);
+    check(get_eintr_cnt(), 0);
+    err = memcmp(write_buffer, read_buffer, sizeof(write_buffer));
+    check(err, 0);
+    swap_backend(prev);
+}
+
 int main() {
     file_not_exists();
     int out = 1;
@@ -176,6 +197,7 @@ int main() {
     open_file_success();
     read_file_reads_all_written_bytes_in_file(*out_fd);
     read_file_unexpected_eof(*out_fd);
+    read_file_eintr_but_success(*out_fd);
     LOG("OPEN & READ & CLOSE failures: %d", failures);
     if (failures > 0) {
         return -1;

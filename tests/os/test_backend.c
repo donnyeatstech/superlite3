@@ -1,4 +1,5 @@
 
+#include "test_backend.h"
 #include "../../src/os/backend.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -17,6 +18,10 @@ struct fake_file_buffer {
     ssize_t len;
     off_t offset;
 };
+
+static int eintr_cnt = 0;
+void arm_eintr(int n) { eintr_cnt = n; }
+int get_eintr_cnt() { return eintr_cnt; }
 
 static struct fake_file_buffer fake_file_buffers[MAX_FAKE_FILES];
 
@@ -100,6 +105,11 @@ static ssize_t test_pread(int fd, void *buf, size_t nbytes, off_t offset) {
     ssize_t bytes_avl = file->len - offset;
     if (bytes_avl < 0) {
         return 0;
+    }
+    if (eintr_cnt > 0) {
+        eintr_cnt--;
+        errno = EINTR;
+        return -1;
     }
     size_t lim = (size_t)bytes_avl;
     lim = lim < nbytes ? lim : nbytes;
