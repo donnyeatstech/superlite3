@@ -22,7 +22,7 @@ static int failures = 0;
         }                                                                      \
     } while (0)
 #define LOG(fmt, ...)                                                          \
-    printf("%s: %d " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
+    printf("%s: %d %s()" fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 void file_not_exists() {
     struct syscalls *prev = swap_backend(&test_syscalls);

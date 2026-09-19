@@ -1,0 +1,35 @@
+Group A — stat_file + create_file (existence & creation)
+
+1. File doesn't exist → stat_file reports it doesn't exist (ENOENT) done
+2. File doesn't exist → create_file succeeds -> stat_file confirms it exists done
+3. File doesn't exist, permission denied on the containing dir → create_file fails, EACCES done
+4. [new] File already exists → create_file fails, EEXIST — this is the entire reason O_EXCL is set; currently untested done
+
+Group B — open_file + read_file + close_file
+
+6. open_file: path doesn't exist → ENOENT done
+7. open_file: path exists, permission denied → EACCES done
+8. open_file: path exists → succeeds, valid fd returned done
+9. read_file: reads back exactly the bytes that were written (round-trip integrity — this is what "corrupt data" from your notes becomes: prove the read path never mangles bytes) done
+10. [new] read_file: short read / unexpected EOF (fewer bytes available than requested) → returns -1 — the exact bug fixed earlier in this project; this is its regression test done
+11. [new] read_file: one EINTR then success → retry loop completes, correct bytes returned done
+12. [new] read_file: read at a non-zero offset → correct bytes, correct position (not just offset 0)
+13. close_file: succeeds
+14. close_file: fails (e.g. bad fd, EBADF)
+
+Group C — open_file + write_file + close_file
+
+Sets up its own file at the top of this group's tests — does not depend on Group A having run. (Reuses Group B's open/close cases 6-8, 13-14; not re-listed.)
+
+15. write_file: succeeds, and the written bytes read back correctly (pairs with case 9)
+16. write_file: fails, permission denied
+17. [new] write_file: returns 0 bytes / short write → returns -1 — write-side counterpart to case 10
+18. [new] write_file: one EINTR then success
+19. [new] write_file at a non-zero offset → lands at the correct position, doesn't clobber adjacent bytes (this is your bottom-of-page note, promoted to its own case instead of a general reminder)
+
+Group D — open_file + fsync_file + close_file
+
+Reuses Group B's open/close cases (6-8, 13-14).
+
+20. [new] fsync_file: succeeds
+21. [new] fsync_file: fails (e.g. EBADF on a bad fd)
