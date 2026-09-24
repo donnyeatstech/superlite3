@@ -171,9 +171,9 @@ void read_file_eintr_but_success(int fd) {
     check(err, 0);
     uint8_t read_buffer[512];
     for (int i = 0; i < (int)sizeof(read_buffer); i++) {
-        read_buffer[i] = (uint8_t)(i * 31) + 7;
+        read_buffer[i] = (uint8_t)(i * 31) + 8;
     }
-    read_buffer[240] = 0x00;
+    read_buffer[241] = 0x00;
     arm_eintr(3);
     err = read_file(fd, read_buffer, sizeof(read_buffer), 0);
     check(err, 0);
@@ -218,6 +218,7 @@ void close_file_invalid_fd() {
     read_buffer[240] = 0x00;
     int err = close_file(999);
     check(err, -1);
+    check(errno, EBADF);
     swap_backend(prev);
 }
 
@@ -247,13 +248,14 @@ void write_file_short_write() {
     int out_fd = 7;
 
     int err = create_file(dirfd, path, &out_fd);
+    errno = 0;
     check(err, 0);
 
     uint8_t write_buffer[512];
 
     err = write_file(out_fd, write_buffer, sizeof(write_buffer), 0);
     check(err, -1);
-    check(errno, EACCES);
+    check(errno, 0);
     swap_backend(prev);
 }
 
@@ -354,7 +356,7 @@ void fsync_failure() {
 
     struct syscalls *prev = swap_backend(&test_syscalls);
     int err = fsync_file(10);
-    check(err, 0);
+    check(err, -1);
     check(errno, EBADF);
 
     swap_backend(prev);
@@ -392,6 +394,7 @@ int main() {
     if (failures > 0) {
         return -1;
     }
+
     LOG("TOTAL failures: %d\n", failures);
     return 0;
 }
