@@ -132,8 +132,19 @@ static ssize_t test_pwrite(int fd, const void *buf, size_t nbytes,
         errno = EFBIG;
         return -1;
     }
+    if (strcmp(file->path, "fake/write_fails_permission_denied.txt") == 0) {
+        errno = EACCES;
+        return -1;
+    }
+    if (strcmp(file->path, "fake/write_fails_short_write.txt") == 0) {
+        return 0;
+    }
+    if (eintr_cnt > 0) {
+        eintr_cnt--;
+        errno = EINTR;
+        return -1;
+    }
     memcpy(file->filebuffer + offset, buf, nbytes);
-
     ssize_t end = (ssize_t)offset + (ssize_t)nbytes;
     if (end > file->len) {
         file->len = end;
@@ -141,7 +152,17 @@ static ssize_t test_pwrite(int fd, const void *buf, size_t nbytes,
     return (ssize_t)nbytes;
 }
 
-static int test_close(int fd) { return -1; }
+static int test_close(int fd) {
+
+    struct fake_file_buffer *file = fake_file_exists("", fd);
+    if (file == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+
+    file->fd = -1;
+    return 0;
+}
 
 static int test_fsync(int fd) { return 0; }
 

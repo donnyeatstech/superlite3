@@ -22,7 +22,7 @@ static int failures = 0;
         }                                                                      \
     } while (0)
 #define LOG(fmt, ...)                                                          \
-    printf("%s: %d %s()" fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__)
+    printf("%s: %d %s() " fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 void file_not_exists() {
     struct syscalls *prev = swap_backend(&test_syscalls);
@@ -183,6 +183,158 @@ void read_file_eintr_but_success(int fd) {
     swap_backend(prev);
 }
 
+void read_file_at_offset_get_correct_bytes(int fd) {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    uint8_t write_buffer[512];
+    for (int i = 0; i < (int)sizeof(write_buffer); i++) {
+        write_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    write_buffer[240] = 0x00;
+    int err = write_file(fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, 0);
+    uint8_t read_buffer[256];
+    read_buffer[240] = 0x00;
+    err = read_file(fd, read_buffer, sizeof(read_buffer), 256);
+    check(err, 0);
+    err = memcmp(write_buffer + 256, read_buffer, sizeof(read_buffer));
+    check(err, 0);
+    swap_backend(prev);
+}
+
+void close_file_succeeds(int fd) {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    uint8_t read_buffer[256];
+    read_buffer[240] = 0x00;
+    int err = read_file(fd, read_buffer, sizeof(read_buffer), 0);
+    check(err, 0);
+    err = close_file(fd);
+    check(err, 0);
+    swap_backend(prev);
+}
+
+void close_file_invalid_fd() {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    uint8_t read_buffer[256];
+    read_buffer[240] = 0x00;
+    int err = close_file(999);
+    check(err, -1);
+    swap_backend(prev);
+}
+
+void write_fails_permission_denied() {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int dirfd = 1;
+    const char *path = "fake/write_fails_permission_denied.txt";
+
+    int out_fd = 6;
+
+    int err = create_file(dirfd, path, &out_fd);
+    check(err, 0);
+
+    uint8_t write_buffer[512];
+
+    err = write_file(out_fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, -1);
+    check(errno, EACCES);
+    swap_backend(prev);
+}
+
+void write_file_short_write() {
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int dirfd = 1;
+    const char *path = "fake/write_fails_short_write.txt";
+
+    int out_fd = 7;
+
+    int err = create_file(dirfd, path, &out_fd);
+    check(err, 0);
+
+    uint8_t write_buffer[512];
+
+    err = write_file(out_fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, -1);
+    check(errno, EACCES);
+    swap_backend(prev);
+}
+
+void write_file_eintr_but_success() {
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int dirfd = 1;
+    const char *path = "fake/write_eintr_but_success.txt";
+    int out_fd = 7;
+    int err = create_file(dirfd, path, &out_fd);
+    check(err, 0);
+
+    uint8_t write_buffer[512];
+    for (int i = 0; i < (int)sizeof(write_buffer); i++) {
+        write_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    write_buffer[240] = 0x00;
+    arm_eintr(3);
+    err = write_file(out_fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, 0);
+    check(get_eintr_cnt(), 0);
+
+    swap_backend(prev);
+}
+
+void write_file_at_offset_ensure_correct_bytes() {
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int dirfd = 1;
+    const char *path = "fake/write_at_an_offset.txt";
+    int out_fd = 8;
+    int err = create_file(dirfd, path, &out_fd);
+    check(err, 0);
+
+    uint8_t write_buffer[512];
+    for (int i = 0; i < (int)sizeof(write_buffer); i++) {
+        write_buffer[i] = (uint8_t)(i * 31) + 7;
+    }
+    write_buffer[240] = 0x00;
+
+    // base bytes written to fd
+    err = write_file(out_fd, write_buffer, sizeof(write_buffer), 0);
+    check(err, 0);
+
+    // memcmp written bytes and intended bytes for whole buffer
+    uint8_t read_buffer[512];
+    read_buffer[240] = 0x00;
+    err = read_file(out_fd, read_buffer, sizeof(read_buffer), 0);
+    check(err, 0);
+    err = memcmp(write_buffer, read_buffer, sizeof(read_buffer));
+    check(err, 0);
+
+    // bytes written to an offset
+    uint8_t small_buffer[64];
+    for (int i = 0; i < (int)sizeof(small_buffer); i++) {
+        small_buffer[i] = (uint8_t)(i * 31) + 8;
+    }
+    err = write_file(out_fd, small_buffer, sizeof(small_buffer), 256);
+    check(err, 0);
+
+    // memcmp written offset bytes, and bytes before and after offset, offset +
+    // nbytes
+    err = read_file(out_fd, read_buffer, sizeof(read_buffer), 0);
+    check(err, 0);
+    err = memcmp(
+        small_buffer, read_buffer + 256,
+        sizeof(small_buffer)); // compare 64 bytes at an offset of 256 bytes
+    check(err, 0);
+
+    err = memcmp(write_buffer, read_buffer,
+                 (unsigned long)256); // compare first 256 bytes
+    check(err, 0);
+    err = memcmp(
+        write_buffer + (unsigned long)(256 + 64),
+        read_buffer + (unsigned long)(256 + 64),
+        (unsigned long)(256 - 64)); // compare 192 bytes at an offset of 320
+
+    check(err, 0);
+    swap_backend(prev);
+}
+
 int main() {
     file_not_exists();
     int out = 1;
@@ -190,17 +342,28 @@ int main() {
     file_exists(out_fd);
     not_enough_dir_permissions();
     file_exists_create_fails();
-    LOG("STAT & CREATE failures: %d", failures);
-    failures = 0;
+    LOG("STAT & CREATE failures: %d\n", failures);
+
     open_file_invalid_file_path();
     open_file_permission_denied();
     open_file_success();
     read_file_reads_all_written_bytes_in_file(*out_fd);
     read_file_unexpected_eof(*out_fd);
     read_file_eintr_but_success(*out_fd);
-    LOG("OPEN & READ & CLOSE failures: %d", failures);
+    read_file_at_offset_get_correct_bytes(*out_fd);
+    close_file_succeeds(*out_fd);
+    close_file_invalid_fd();
+    LOG("OPEN & READ & CLOSE failures: %d\n", failures);
+
+    write_fails_permission_denied();
+    write_file_short_write();
+    write_file_eintr_but_success();
+    write_file_at_offset_ensure_correct_bytes();
+
+    LOG("OPEN & WRITE & CLOSE failures: %d\n", failures);
     if (failures > 0) {
         return -1;
     }
+    LOG("TOTAL failures: %d\n", failures);
     return 0;
 }
