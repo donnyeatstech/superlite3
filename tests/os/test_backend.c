@@ -164,7 +164,15 @@ static int test_close(int fd) {
     return 0;
 }
 
-static int test_fsync(int fd) { return 0; }
+static int test_fsync(int fd) {
+
+    struct fake_file_buffer *file = fake_file_exists(NULL, fd);
+    if (file == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+    return 0;
+}
 
 struct syscalls test_syscalls = {.openat = test_openat,
                                  .stat = test_stat,

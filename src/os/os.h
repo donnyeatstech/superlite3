@@ -23,3 +23,5 @@ int create_file(int dirfd, const char *path, int *out_fd);
 int write_file(int fd, const void *buf, size_t nbytes, off_t offset);
 
 int close_file(int fd);
+
+int fsync_file(int fd);

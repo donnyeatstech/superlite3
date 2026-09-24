@@ -335,6 +335,31 @@ void write_file_at_offset_ensure_correct_bytes() {
     swap_backend(prev);
 }
 
+void fsync_success() {
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int dirfd = 1;
+    const char *path = "fake/fsync_success.txt";
+    int out_fd = 9;
+    int err = create_file(dirfd, path, &out_fd);
+    check(err, 0);
+
+    err = fsync_file(out_fd);
+    check(err, 0);
+
+    swap_backend(prev);
+}
+
+void fsync_failure() {
+
+    struct syscalls *prev = swap_backend(&test_syscalls);
+    int err = fsync_file(10);
+    check(err, 0);
+    check(errno, EBADF);
+
+    swap_backend(prev);
+}
+
 int main() {
     file_not_exists();
     int out = 1;
@@ -359,8 +384,11 @@ int main() {
     write_file_short_write();
     write_file_eintr_but_success();
     write_file_at_offset_ensure_correct_bytes();
-
     LOG("OPEN & WRITE & CLOSE failures: %d\n", failures);
+
+    fsync_success();
+    fsync_failure();
+
     if (failures > 0) {
         return -1;
     }
